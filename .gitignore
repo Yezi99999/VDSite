@@ -8,11 +8,15 @@ __pycache__/
 .venv
 venv/
 ENV/
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Django
 db.sqlite3
 *.log
 local_settings.py
+media/
+staticfiles/
 
 # Vue/Node
 node_modules/
@@ -21,18 +25,44 @@ yarn-debug.log*
 yarn-error.log*
 dist/
 build/
+.cache/
+.parcel-cache/
 
-# IDE
-.vscode/
+# JetBrains IDE
 .idea/
-*.swp
-*.swo
+*.iws
+*.iml
+*.ipr
+.idea/*
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
 
-# OS
+# VS Code
+.vscode/
+*.code-workspace
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
 
 # Environment
 .env.local
 .env.*.local
-EOF
+*.env
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+*.tmp
+*.temp
