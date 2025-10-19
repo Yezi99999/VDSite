@@ -1,7 +1,7 @@
 <template>
   <div class="post-list">
     <div class="container">
-      <h1>文章列表</h1>
+      <h1>{{ pageTitle }}</h1>
 
       <!-- 搜索和过滤 -->
       <div class="filters">
@@ -18,7 +18,12 @@
             {{ category.name }}
           </option>
         </select>
-        <button @click="loadPosts" class="filter-button">筛选</button>
+        <button @click="loadPosts" class="filter-button">搜索</button>
+      </div>
+
+      <!-- 当前筛选条件显示 -->
+      <div v-if="currentFilter" class="current-filter">
+        当前筛选: {{ currentFilter }}
       </div>
 
       <!-- 文章列表 -->
@@ -44,7 +49,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { blogAPI } from '@/services/api'
 
@@ -56,33 +61,47 @@ const categories = ref([])
 const loading = ref(false)
 const searchQuery = ref('')
 const selectedCategory = ref('')
+const categoriesLoaded = ref(false)
 
-onMounted(async () => {
-  await loadCategories()
-  await loadPosts()
+// 计算属性 - 基于当前选择的分类而不是URL参数
+const pageTitle = computed(() => {
+  if (searchQuery.value) {
+    return `搜索: "${searchQuery.value}"`
+  } else if (selectedCategory.value) {
+    if (!categoriesLoaded.value) return '文章列表'
+    const category = categories.value.find(cat => cat.id == selectedCategory.value)
+    return category ? `${category.name} - 文章列表` : '文章列表'
+  }
+  return '文章列表'
 })
 
-// 监听路由参数变化
-watch(() => route.query, () => {
-  // 从URL参数更新筛选条件
-  searchQuery.value = route.query.search || ''
-  selectedCategory.value = route.query.category || ''
-  loadPosts()
+const currentFilter = computed(() => {
+  if (searchQuery.value) {
+    return `搜索关键词: "${searchQuery.value}"`
+  } else if (selectedCategory.value) {
+    if (!categoriesLoaded.value) return ''
+    const category = categories.value.find(cat => cat.id == selectedCategory.value)
+    return category ? `分类: ${category.name}` : ''
+  }
+  return ''
 })
 
 const loadPosts = async () => {
   loading.value = true
   try {
-    // 更新URL参数
+    // 更新URL参数以反映当前筛选条件
     const query = {}
     if (searchQuery.value) query.search = searchQuery.value
     if (selectedCategory.value) query.category = selectedCategory.value
-
-    router.push({ query })
-
-    // 获取文章列表
-    const response = await blogAPI.searchPosts(searchQuery.value, selectedCategory.value)
-    posts.value = response.data
+    
+    // 只有当URL参数与当前筛选条件不同时才更新URL
+    if (JSON.stringify(route.query) !== JSON.stringify(query)) {
+      router.push({ query })
+    } else {
+      // 直接获取文章列表
+      const response = await blogAPI.searchPosts(searchQuery.value, selectedCategory.value)
+      posts.value = response.data
+    }
   } catch (error) {
     console.error('加载文章失败:', error)
   } finally {
@@ -94,6 +113,7 @@ const loadCategories = async () => {
   try {
     const response = await blogAPI.getCategories()
     categories.value = response.data
+    categoriesLoaded.value = true
   } catch (error) {
     console.error('加载分类失败:', error)
   }
@@ -104,8 +124,34 @@ const goToPost = (id) => {
 }
 
 const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('zh-CN')
+  return new Date(dateString).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
 }
+
+// 监听路由参数变化
+watch(() => route.query, () => {
+  // 从URL参数更新筛选条件
+  searchQuery.value = route.query.search || ''
+  selectedCategory.value = route.query.category || ''
+  // 只有当URL参数与当前筛选条件不同时才加载文章
+  if (route.query.search || route.query.category) {
+    loadPosts()
+  }
+})
+
+onMounted(async () => {
+  await loadCategories()
+  
+  // 手动处理初始URL参数
+  searchQuery.value = route.query.search || ''
+  selectedCategory.value = route.query.category || ''
+  
+  // 加载文章
+  await loadPosts()
+})
 </script>
 
 <style scoped>
@@ -118,8 +164,17 @@ const formatDate = (dateString) => {
 .filters {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   align-items: center;
+}
+
+.current-filter {
+  background: #f8f9fa;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #667eea;
+  font-weight: 500;
 }
 
 .search-input {

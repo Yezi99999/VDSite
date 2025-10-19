@@ -1,8 +1,4 @@
 <template>
-  <div class="navigation-buttons">
-    <button @click="goBack" class="btn btn-secondary">返回</button>
-    <button @click="goToHome" class="btn btn-secondary">返回首页</button>
-  </div>
   <div class="post-detail">
     <div class="container">
       <!-- 加载状态 -->
@@ -51,7 +47,7 @@
                 <input
                   v-model="commentForm.author_name"
                   type="text"
-                  placeholder="您的姓名"
+                  placeholder="昵称"
                   required
                   class="form-input"
                 >
@@ -66,7 +62,7 @@
                 ></textarea>
               </div>
               <button type="submit" class="btn btn-primary" :disabled="submittingComment">
-                {{ submittingComment ? '提交中...' : '发表评论' }}
+{{ submittingComment ? '提交中...' : '发表评论' }}
               </button>
             </form>
           </div>
@@ -83,9 +79,7 @@
                 <span class="comment-author">{{ comment.author_name }}</span>
                 <span class="comment-date">{{ formatDate(comment.created_at) }}</span>
               </div>
-              <div class="comment-content">
-                {{ comment.content }}
-              </div>
+              <div class="comment-content" v-html="formatCommentContent(comment.content)"></div>
             </div>
 
             <!-- 安全地检查评论长度 -->
@@ -94,13 +88,19 @@
             </div>
           </div>
         </section>
+
+        <!-- 导航按钮 - 移到文章下方居中 -->
+        <div class="navigation-buttons-bottom">
+          <button @click="goBack" class="btn btn-filter">返回</button>
+          <button @click="goToHome" class="btn btn-secondary">返回首页</button>
+        </div>
       </div>
 
       <!-- 文章不存在 -->
       <div v-else class="error">
-        <h2>文章不存在</h2>
+        <h2>文章不存在[404]</h2>
         <p>您访问的文章可能已被删除或不存在。</p>
-        <router-link to="/" class="btn btn-primary">返回首页</router-link>
+        <router-link to="/Home" class="btn btn-primary">返回首页</router-link>
       </div>
     </div>
   </div>
@@ -110,13 +110,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { blogAPI } from '@/services/api'
+import { safeMarkdownToHtml } from '@/utils/markdown'
 
-const route = useRoute()
-const router = useRouter()
-
+// 响应式数据
+const loading = ref(true)
 const post = ref(null)
 const comments = ref([])
-const loading = ref(true)
 const submittingComment = ref(false)
 
 const commentForm = ref({
@@ -124,49 +123,24 @@ const commentForm = ref({
   content: ''
 })
 
+const route = useRoute()
+const router = useRouter()
+
 // 计算属性
+const isAuthor = computed(() => {
+  // 这里需要根据实际认证逻辑实现
+  return false
+})
+
 const safeComments = computed(() => {
-  return comments.value || []
+  return Array.isArray(comments.value) ? comments.value : []
 })
 
 const safeCommentCount = computed(() => {
-  return comments.value?.length || 0
+  return safeComments.value.length
 })
 
-const isAuthor = computed(() => {
-  // 简单的作者检查逻辑，可以根据实际需求调整
-  return post.value?.author_name === '当前用户' // 这里需要根据实际用户系统调整
-})
-
-// 导航函数
-const goBack = () => {
-  router.back()
-}
-
-const goToHome = () => {
-  router.push('/')
-}
-
-const editPost = () => {
-  if (post.value?.id) {
-    router.push(`/edit/${post.value.id}`)
-  }
-}
-
-const deletePost = async () => {
-  if (confirm('确定要删除这篇文章吗？')) {
-    try {
-      await blogAPI.deletePost(post.value.id)
-      alert('文章删除成功')
-      router.push('/')
-    } catch (error) {
-      console.error('删除文章失败:', error)
-      alert('删除文章失败，请重试')
-    }
-  }
-}
-
-// 辅助函数
+// 方法
 const formatDate = (dateString) => {
   if (!dateString) return '未知时间'
   const date = new Date(dateString)
@@ -181,118 +155,150 @@ const formatDate = (dateString) => {
 
 const formatContent = (content) => {
   if (!content) return ''
-  // 简单的HTML转义和换行处理
-  return content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-    .replace(/\n/g, '<br>')
+  // 使用安全的Markdown解析
+  return safeMarkdownToHtml(content)
 }
 
-onMounted(async () => {
-  await loadPost()
-  await loadComments()
-})
+const formatCommentContent = (content) => {
+  if (!content) return ''
+  // 使用安全的Markdown解析评论内容
+  return safeMarkdownToHtml(content)
+}
 
 const loadPost = async () => {
   try {
-    const response = await blogAPI.getPost(route.params.id)
-    post.value = response.data
+    loading.value = true
+    const postId = route.params.id
+    if (postId) {
+      const response = await blogAPI.getPost(postId)
+      post.value = response.data
+      await loadComments(postId)
+    }
   } catch (error) {
     console.error('加载文章失败:', error)
-    post.value = {
-      title: '文章加载失败',
-      content: '无法加载文章内容',
-      author_name: '未知',
-      category_name: '未知',
-      created_at: new Date().toISOString()
-    }
-  }
-}
-
-const loadComments = async () => {
-  try {
-    // 修复：使用正确的API方法，通过参数过滤特定文章的评论
-    const response = await blogAPI.getComments({ post: route.params.id })
-    comments.value = response.data
-  } catch (error) {
-    console.error('加载评论失败:', error)
-    comments.value = []
+    post.value = null
   } finally {
     loading.value = false
   }
 }
 
+const loadComments = async (postId) => {
+  try {
+    const response = await blogAPI.getComments({ post: postId })
+    comments.value = response.data || []
+  } catch (error) {
+    console.error('加载评论失败:', error)
+    comments.value = []
+  }
+}
+
 const submitComment = async () => {
-  if (!commentForm.value.author_name.trim() || !commentForm.value.content.trim()) {
-    alert('请填写姓名和评论内容')
+  if (!commentForm.value.author_name || !commentForm.value.content) {
     return
   }
 
-  submittingComment.value = true
   try {
-    await blogAPI.addCommentToPost(post.value.id, {
-      author_name: commentForm.value.author_name,
-      content: commentForm.value.content
-    })
-
-    commentForm.value = { author_name: '', content: '' }
-    await loadComments()
-    alert('评论提交成功！等待管理员审核后显示。')
+    submittingComment.value = true
+    await blogAPI.addCommentToPost(route.params.id, commentForm.value)
+    // 重新加载评论
+    await loadComments(route.params.id)
+    // 清空表单
+    commentForm.value = {
+      author_name: '',
+      content: ''
+    }
   } catch (error) {
     console.error('提交评论失败:', error)
-    alert(`提交评论失败: ${error.response?.data?.message || '请重试'}`)
   } finally {
     submittingComment.value = false
   }
 }
+
+const editPost = () => {
+  if (post.value) {
+    router.push(`/post/edit/${post.value.id}`)
+  }
+}
+
+const deletePost = async () => {
+  if (!post.value) return
+  
+  if (confirm('确定要删除这篇文章吗？此操作不可撤销。')) {
+    try {
+      await blogAPI.deletePost(post.value.id)
+      // 删除成功后跳转到首页
+      router.push('/home')
+    } catch (error) {
+      console.error('删除文章失败:', error)
+    }
+  }
+}
+
+const goBack = () => {
+  router.back()
+}
+
+const goToHome = () => {
+  router.push('/home')
+}
+
+// 生命周期
+onMounted(() => {
+  loadPost()
+})
 </script>
 
 <style scoped>
-/* 导航栏样式 */
-.navigation-buttons {
-  background: #f8f9fa;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid #eaeaea;
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-}
-
-.navigation-buttons .btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
-  background: white;
-  color: #333;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.navigation-buttons .btn:hover {
-  background: #667eea;
-  color: white;
-  border-color: #667eea;
-}
-
-.navigation-buttons .btn-secondary {
-  background: #6c757d;
-  color: white;
-  border-color: #6c757d;
-}
-
-.navigation-buttons .btn-secondary:hover {
-  background: #5a6268;
-  border-color: #545b62;
-}
-
-/* 保持之前的样式不变 */
 .container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 2rem;
+}
+
+/* 导航按钮样式 - 底部居中 */
+.navigation-buttons-bottom {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid #eee;
+}
+
+/* 返回按钮使用filter-button颜色 */
+.btn-filter {
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+
+.btn-filter:hover {
+  background: #5a6fd8;
+  transform: translateY(-1px);
+}
+
+/* 返回首页按钮保持原有样式 */
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
 }
 
 .loading {
@@ -345,6 +351,108 @@ const submitComment = async () => {
   line-height: 1.8;
   font-size: 1.1rem;
   color: #333;
+}
+
+/* 添加Markdown内容样式 */
+.content :deep(h1) {
+  font-size: 2.2rem;
+  font-weight: bold;
+  margin: 2rem 0 1rem;
+  color: #333;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 0.5rem;
+}
+
+.content :deep(h2) {
+  font-size: 1.8rem;
+  font-weight: bold;
+  margin: 1.8rem 0 0.8rem;
+  color: #444;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.3rem;
+}
+
+.content :deep(h3) {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 1.5rem 0 0.5rem;
+  color: #555;
+}
+
+.content :deep(p) {
+  margin-bottom: 1rem;
+}
+
+.content :deep(blockquote) {
+  border-left: 4px solid #667eea;
+  background: #f8f9fa;
+  padding: 1rem 1.5rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: #666;
+}
+
+.content :deep(code) {
+  background: #f1f3f4;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.content :deep(pre) {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.content :deep(ul), .content :deep(ol) {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.content :deep(li) {
+  margin-bottom: 0.5rem;
+}
+
+.content :deep(a) {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.content :deep(th), .content :deep(td) {
+  border: 1px solid #ddd;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.content :deep(th) {
+  background: #f8f9fa;
+  font-weight: bold;
+}
+
+.content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 1rem 0;
 }
 
 .content :deep(br) {
@@ -458,13 +566,16 @@ const submitComment = async () => {
   border-radius: 8px;
   padding: 1.5rem;
   margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .comment-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .comment-author {
@@ -474,31 +585,109 @@ const submitComment = async () => {
 
 .comment-date {
   color: #666;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
 }
 
 .comment-content {
   line-height: 1.6;
+  color: #444;
+}
+
+/* 评论内容的Markdown样式 */
+.comment-content :deep(h1),
+.comment-content :deep(h2),
+.comment-content :deep(h3) {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0.8rem 0 0.5rem;
   color: #333;
 }
 
-.no-comments {
-  text-align: center;
-  padding: 2rem;
-  color: #666;
+.comment-content :deep(h1) {
+  font-size: 1.4rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.3rem;
+}
+
+.comment-content :deep(p) {
+  margin-bottom: 0.8rem;
+}
+
+.comment-content :deep(blockquote) {
+  border-left: 3px solid #667eea;
+  background: #f8f9fa;
+  padding: 0.8rem 1rem;
+  margin: 0.8rem 0;
   font-style: italic;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.comment-content :deep(code) {
+  background: #f1f3f4;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+}
+
+.comment-content :deep(pre) {
+  background: #f8f9fa;
+  padding: 0.8rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0.8rem 0;
+  font-size: 0.85rem;
+}
+
+.comment-content :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.comment-content :deep(ul),
+.comment-content :deep(ol) {
+  margin: 0.8rem 0;
+  padding-left: 1.5rem;
+}
+
+.comment-content :deep(li) {
+  margin-bottom: 0.3rem;
+}
+
+.comment-content :deep(a) {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.comment-content :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.comment-content :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 0.5rem 0;
 }
 
 .error {
   text-align: center;
   padding: 3rem;
 }
-
 .error h2 {
   color: #dc3545;
   margin-bottom: 1rem;
 }
 
+.error p {
+  margin-bottom: 2rem;
+}
+
+.error .btn {
+  margin-top: 1.5rem;
+}
 @media (max-width: 768px) {
   .navigation-buttons {
     padding: 1rem;

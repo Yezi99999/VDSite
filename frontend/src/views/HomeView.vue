@@ -20,6 +20,18 @@
           </div>
         </div>
       </div>
+      <div class="hero-info">
+          <div class="image-container">
+            <img
+              src="../assets/images/avatar.png"
+              alt="叶子"
+              class="profile-image"
+            />
+          </div>
+        <p class="hero-description">
+          喜欢通过双手来实现想要的效果，这里记录了我的技术成长和生活经历。
+        </p>
+      </div>
     </section>
 
     <!-- 主要内容区域 -->
@@ -202,7 +214,28 @@ const formatDate = (dateString) => {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 80px 0;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.hero-content {
+  flex: 1;
+  padding: 0 40px;
+  text-align: right;
+}
+.profile-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+.hero-info {
+  flex: 1;
+  padding: 0 40px;
+  text-align: left;
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .hero-title {
@@ -219,15 +252,15 @@ const formatDate = (dateString) => {
 
 .hero-stats {
   display: flex;
-  justify-content: center;
   gap: 3rem;
   margin-top: 2rem;
+  justify-content: right;
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .stat-number {
@@ -238,6 +271,12 @@ const formatDate = (dateString) => {
 .stat-label {
   font-size: 0.9rem;
   opacity: 0.8;
+}
+
+.hero-description {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  opacity: 0.9;
 }
 
 /* 布局 */
@@ -413,12 +452,35 @@ const formatDate = (dateString) => {
     grid-template-columns: 1fr;
   }
 
+  .hero-section {
+    flex-direction: column;
+    text-align: center;
+    padding: 60px 0;
+  }
+
+  .hero-content {
+    padding: 0 20px;
+    text-align: center;
+  }
+
+  .hero-info {
+    padding: 40px 20px 0 20px;
+    text-align: center;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+  }
+
   .hero-title {
     font-size: 2rem;
   }
 
   .hero-stats {
+    justify-content: center;
     gap: 1.5rem;
+  }
+
+  .stat-item {
+    align-items: center;
   }
 
   .stat-number {

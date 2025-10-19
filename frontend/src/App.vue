@@ -6,7 +6,7 @@
         <router-link to="/" class="nav-logo">VDSite</router-link>
         <div class="nav-links">
           <router-link to="/home">首页</router-link>
-          <router-link to="/posts">文章列表</router-link>
+          <router-link to="/posts">文章</router-link>
           <router-link v-if="isAuthenticated" to="/post/create">写文章</router-link>
           <router-link to="/about">关于</router-link>
           <div class="auth-section" v-if="isAuthenticated">
@@ -104,7 +104,7 @@ body {
 .nav-links a:hover,
 .nav-links a.router-link-active {
   color: #667eea;
-  background-color: #f8f9fa;
+  background-color: #faf0ea;
 }
 
 .auth-section {
@@ -143,9 +143,40 @@ body {
 
 main {
   min-height: calc(100vh - 80px);
-  padding: 2rem 0;
+  padding: unset;
 }
 
+::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+  height: 1px;
+}
+
+::-webkit-scrollbar-track {
+  width: 6px;
+  background: rgba(16, 31, 28, 0.1);
+  -webkit-border-radius: 2em;
+  -moz-border-radius: 2em;
+  border-radius: 2em;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(144,90,183,.5);
+  background-clip: padding-box;
+  min-height: 28px;
+  -webkit-border-radius: 2em;
+  -moz-border-radius: 2em;
+  border-radius: 2em;
+  transition: background-color .3s;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(144,147,153,.3);
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
 /* 响应式设计 */
 @media (max-width: 768px) {
   .nav-container {

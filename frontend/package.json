@@ -10,6 +10,8 @@
   "dependencies": {
     "axios": "^1.12.2",
     "core-js": "^3.8.3",
+    "dompurify": "^3.3.0",
+    "marked": "^16.4.1",
     "pinia": "^3.0.3",
     "router": "^2.2.0",
     "vue": "^3.2.13",

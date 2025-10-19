@@ -1,6 +1,6 @@
 <template>
   <div class="about">
-    <h1>关于我们</h1>
+    <h1>关于我</h1>
     <p>这是一个使用 Vue3 和 Django 构建的博客系统</p>
   </div>
 </template>
